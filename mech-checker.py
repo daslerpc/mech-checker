@@ -1,7 +1,19 @@
+import random
+import math
 
-#####################
-##    Variables    ##
-#####################
+############################
+##    Program Settings    ##
+############################
+
+# Turns on/off debugging text output
+debugging = False
+
+# File in which the valid state space is saved
+stateSpaceFileName = "validStateSpaces.dat"
+
+#############################
+##    Program Variables    ##
+#############################
 
 # All valid vehicle positions and times.
 # A state is invalid if there is a vehicle collision, delay
@@ -9,7 +21,7 @@
 stateSpace = set()
 
 # length of sides of square shaped space
-spaceSize = 2
+spaceSize = 2.0
 
 # speedlimit for vehicles in unit distance/unit time
 topSpeed = 1.0
@@ -20,12 +32,20 @@ allowedDelay = 1.0
 # maximum time needed for all vehicles to reach goal given allowable delay
 maxTime = spaceSize/topSpeed + allowedDelay
 
-
 # size of step into which time and space are divided
-resolution = 0.1
+# currently using a resolution that is a power of 2 so that
+# there is no internal approximation and precision is maintained
+resolution = 1.0/16.0
+
+# given the resolution and space size, how many grid cells across is the space
+numGridSpaces = math.ceil(spaceSize / resolution)
+
+# given the max time to reach the goal and the resolution, how many time steps
+# are needed to complete the run
+numTimeSteps = math.ceil(maxTime / resolution)
 
 # length of small, delayless vehicles
-epsVehicleLength = resolution
+epsVehicleLength = 2*resolution
 
 # length of vertical and horizontal vehicles
 vehicleLength = 1 - epsVehicleLength
@@ -109,18 +129,83 @@ def epsCollision( vehs, eps ) :
 
     return False
     
+# Bringing it all together and checking to see if a full state is valid
+def stateIsValid( vrtVehs, horVehs, time ):
+    valid = True
+    vrtEpsPos = epsPosition( vrtEpsPositions, time )
+    horEpsPos = epsPosition( horEpsPositions, time )
+
+    if vehiclesIntersecting(vrtVehs, horVehs):
+        debugPrint("Invalid: Horizontal/Vertical Vehicle Collision!")
+        valid = False
+    if epsCollision( horVehs, vrtEpsPos ) :        
+        debugPrint("Invalid: Horizontal/EPS Vehicle Collision!")
+        valid = False
+    if epsCollision( vrtVehs, horEpsPos ) :
+        debugPrint("Invalid: Vertical/EPS Vehicle Collision!")
+        valid = False
+
+    # walk through all vertical vehicles
+    for vrtVehIndex in range(0, len(vrtVehs)):
+        if not vehPosValid( vrtVehs[vrtVehIndex], time ):
+            debugPrint("Invalid: Illegal Vertical Vehicle Position: " + str(vrtVehs[vrtVehIndex]) + " at Time: " + str(time))
+            valid = False
+
+    # walk through all horizontal vehicles
+    for horVehIndex in range(0, len(horVehs)):
+        if not vehPosValid( horVehs[horVehIndex], time ):
+            debugPrint("Invalid: Illegal Horizontal Vehicle Position: " + str(horVehs[horVehIndex]) + " at Time: " + str(time))
+            valid = False
+
+    return valid
+
+# Function to show or hide debug text in program output
+def debugPrint( text ) :
+    if debugging :
+        print(text)
+
+# Validation testing method
+# Creates several random states and checks their validity
+def testValidators() :
+    currentTime = 0.0
+
+    for cnt in range(0, 100):
+        verts = [random.randrange(0, numGridSpaces) * resolution, random.randrange(0, numGridSpaces) * resolution]
+        horzs = [random.randrange(0, numGridSpaces) * resolution, random.randrange(0, numGridSpaces) * resolution]
+        time = random.randrange(0, numTimeSteps) * resolution
+
+        state = (verts, horzs, time)
+        if stateIsValid( state[0], state[1], state[2] ) :
+            print(str(state) + " : State is valid!\n")
+        else:
+            print(str(state) + " : Bad state!\n")
+
+# Construct the state space of valid configurations and save them to a file
+def buildStateSpace():
+    stateSpaceFile = open(stateSpaceFileName, 'w')
+
+    # Loop through all possible states, i.e., all vehicle positions at all times
+    for v0 in range(0, numGridSpaces):
+        print (v0)
+        for v1 in range(0, numGridSpaces):
+            vPos = (v0*resolution, v1*resolution)
+            for h0 in range(0, numGridSpaces):
+                for h1 in range(0, numGridSpaces):
+                    hPos = (h0*resolution, h1*resolution)
+                    for t in range(0, numTimeSteps):
+                        time = t*resolution
+                        if stateIsValid( vPos, hPos, time ) :
+                            # write state (v0, v1, h0, h1, t)
+                            stateSpaceFile.write(str(vPos[0]) + "," + str(vPos[1]) + "," + str(hPos[0]) + "," + str(hPos[1]) + "," + str(time) + "\n")
+
+    stateSpaceFile.close()
     
 ####################
 ##      Main      ##
 ####################
 
-currentTime = 0.0
+buildStateSpace()
 
-numGridSteps = spaceSize / resolution
-numTimeSteps = (spaceSize + allowedDelay) / resolution
 
-# Loop through all possible states, i.e., all vehicle positions at all times
 
-# if this state is valid, add it to the state space
-# stateSpace.add( (vrtPos, horPos, currentTime) )
 
