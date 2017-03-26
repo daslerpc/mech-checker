@@ -204,7 +204,9 @@ def buildStateSpace():
 ##      Main      ##
 ####################
 
+# Build the state space of valid states and save it to stateSpaceFileName
 buildStateSpace()
+
 
 
 
