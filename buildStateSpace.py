@@ -38,11 +38,13 @@ maxTime = spaceSize/topSpeed + allowedDelay
 resolution = 1.0/16.0
 
 # given the resolution and space size, how many grid cells across is the space
-numGridSpaces = math.ceil(spaceSize / resolution)
+# plus 1 added to account for position 0.0
+numGridSpaces = math.ceil(spaceSize / resolution) + 1
 
 # given the max time to reach the goal and the resolution, how many time steps
 # are needed to complete the run
-numTimeSteps = math.ceil(maxTime / resolution)
+# plus 1 added to account for time 0.0
+numTimeSteps = math.ceil(maxTime / resolution) + 1
 
 # length of small, delayless vehicles
 epsVehicleLength = 2*resolution
