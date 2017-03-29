@@ -5,6 +5,11 @@
 stateSpaceFileName = "validStateSpaces.dat"
 testDataFileName= "stateSpaceTestData.dat"
 
+motionPlansFileName = "motionPlans.dat"
+
+goalPos = 2.0
+timeStep = 1.0/16.0
+
 #############################
 ##    Program Variables    ##
 #############################
@@ -52,19 +57,64 @@ def generateTestData( file ) :
         
     file.close()
 
+
 def findMotionPlans( ) :
-    
+    planStart = [(0.0, 0.0, 0.0, 0.0, 0.0)]
+   # planStart = [(2.0, 2.0, 2.0, 2.0, 2.0)]
+    findMotionPlansRecurse( planStart )
+
+
+def findMotionPlansRecurse( plan ):
+    planSize = len(plan)
+    lastState = plan[ planSize-1 ]
+
+    if lastState in stateSpace:
+        if isFinalState ( lastState ):
+            writeToFile( plan )
+        else:
+            advanceTime( plan )
+
+def isFinalState ( state ):
+    v0 = state[0]
+    v1 = state[1]
+    h0 = state[2]
+    h1 = state[3]
+    return v0 == goalPos and v1 == goalPos and h0 == goalPos and h1 == goalPos
+
+def writeToFile( plan ) :
+    for state in plan:
+        motionPlansFile.write( str(state) + "\n" )
+        
+    motionPlansFile.write( "\n" )
+        
+def advanceTime( plan ) :
+    state = plan[ len(plan) - 1 ]
+    time = state[4] + timeStep
+
+    for moveV0 in range(0, 2):
+        v0 = state[0] + moveV0 * timeStep
+        for moveV1 in range(0, 2):
+            v1 = state[1] + moveV1 * timeStep
+            for moveH0 in range(0, 2):
+                h0 = state[2] + moveH0 * timeStep
+                for moveH1 in range(0, 2):
+                    h1 = state[3] + moveH1 * timeStep
+                    newState = (v0, v1, h0, h1, time)
+                    newPlan = plan.copy()
+                    newPlan.append(newState)
+                    findMotionPlansRecurse( newPlan )
     
 ####################
 ##      Main      ##
 ####################
 
-loadStateSpace( stateSpace, testDataFileName )
+motionPlansFile = open( motionPlansFileName, 'w' )
 
-state = (2.0,2.0,2.0,2.0,2.0)
+loadStateSpace( testDataFileName )
+findMotionPlans()
 
-print ( state in stateSpace )
 
+motionPlansFile.close()
 
 
 
