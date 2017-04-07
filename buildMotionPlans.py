@@ -10,17 +10,24 @@ motionPlansFileName = "motionPlans.dat"
 goalPos = 2.0
 timeStep = 1.0/16.0
 
+endTime = 3.0
+
 #############################
 ##    Program Variables    ##
 #############################
 
-stateSpace = set()
+stateSpace = []
 
 #####################
 ##     Methods     ##
 #####################
 
 def loadStateSpace(fileName):
+    print ( "Loading state space from " + fileName )
+    
+    for time in range(0, int(endTime/timeStep) + 1) :
+        stateSpace.append( [] )
+
     file = open(fileName, 'r')
 
     for line in file:
@@ -37,9 +44,13 @@ def loadStateSpace(fileName):
 
         state = (v0,v1,h0,h1,time)
 
-        stateSpace.add( state )
+        index = int(time / timeStep)
+
+        stateSpace[index].append( state )
     
     file.close()
+
+    print ("Load complete\n")
 
 def generateTestData( file ) :
     file = open(fileName, 'w')
@@ -61,18 +72,16 @@ def generateTestData( file ) :
 def findMotionPlans( ) :
     planStart = [(0.0, 0.0, 0.0, 0.0, 0.0)]
    # planStart = [(2.0, 2.0, 2.0, 2.0, 2.0)]
-    findMotionPlansRecurse( planStart )
 
+   
 
-def findMotionPlansRecurse( plan ):
-    planSize = len(plan)
-    lastState = plan[ planSize-1 ]
+def findMotionPlansRecurse( motionPlan ) :
+    latestState = motionPlan[ len(motionPlan) - 1 ]
+    time = latestState[4]
 
-    if lastState in stateSpace:
-        if isFinalState ( lastState ):
-            writeToFile( plan )
-        else:
-            advanceTime( plan )
+    index = int(time / timeStep)
+
+    
 
 def isFinalState ( state ):
     v0 = state[0]
@@ -87,34 +96,28 @@ def writeToFile( plan ) :
         
     motionPlansFile.write( "\n" )
         
-def advanceTime( plan ) :
-    state = plan[ len(plan) - 1 ]
-    time = state[4] + timeStep
+def areAdjacentStates( state1, state2 ) :
+    adjacent = (state1[4] + timeStep == state2[4])
+    
+    for index in range(0, 4) :
+        if not (state1[index] == state2[index] or state1[index] + timeStep == state2[index]):
+            adjacent = False            
 
-    for moveV0 in range(0, 2):
-        v0 = state[0] + moveV0 * timeStep
-        for moveV1 in range(0, 2):
-            v1 = state[1] + moveV1 * timeStep
-            for moveH0 in range(0, 2):
-                h0 = state[2] + moveH0 * timeStep
-                for moveH1 in range(0, 2):
-                    h1 = state[3] + moveH1 * timeStep
-                    newState = (v0, v1, h0, h1, time)
-                    newPlan = plan.copy()
-                    newPlan.append(newState)
-                    findMotionPlansRecurse( newPlan )
+    return adjacent
+        
     
 ####################
 ##      Main      ##
 ####################
 
-motionPlansFile = open( motionPlansFileName, 'w' )
-
 loadStateSpace( testDataFileName )
-findMotionPlans()
+#loadStateSpace( stateSpaceFileName )
 
+#motionPlansFile = open( motionPlansFileName, 'w' )
+#findMotionPlans()
+#motionPlansFile.close()
 
-motionPlansFile.close()
+print ( "Run completed." )
 
 
 
