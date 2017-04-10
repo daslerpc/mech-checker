@@ -17,6 +17,7 @@ endTime = 3.0
 #############################
 
 stateSpace = []
+solutionsFound = 0
 
 #####################
 ##     Methods     ##
@@ -28,9 +29,9 @@ def loadStateSpace(fileName):
     for time in range(0, int(endTime/timeStep) + 1) :
         stateSpace.append( [] )
 
-    file = open(fileName, 'r')
+    inputFile = open(fileName, 'r')
 
-    for line in file:
+    for line in inputFile:
 
         data = line.strip().split(',')
 
@@ -48,12 +49,12 @@ def loadStateSpace(fileName):
 
         stateSpace[index].append( state )
     
-    file.close()
+    inputFile.close()
 
     print ("Load complete\n")
 
-def generateTestData( file ) :
-    file = open(fileName, 'w')
+def generateTestData( fileName ) :
+    outputFile = open(fileName, 'w')
     for step in range(0, 33):
         t = step/16.0
         state = ""
@@ -64,24 +65,44 @@ def generateTestData( file ) :
             else:
                 state = state +"\n"
                 
-        file.write(state)
+        outputFile.write(state)
         
-    file.close()
-
+    outputFile.close()
 
 def findMotionPlans( ) :
+    print( "Finding Motion Plans" )
+    
     planStart = [(0.0, 0.0, 0.0, 0.0, 0.0)]
-   # planStart = [(2.0, 2.0, 2.0, 2.0, 2.0)]
+    # planStart = [(2.0, 2.0, 2.0, 2.0, 2.0)]
 
-   
+    motionPlansFile = open( motionPlansFileName, 'w' )
+    findMotionPlansRecurse( planStart, motionPlansFile )
+    motionPlansFile.close()
 
-def findMotionPlansRecurse( motionPlan ) :
+def findMotionPlansRecurse( motionPlan, outFile ) :
     latestState = motionPlan[ len(motionPlan) - 1 ]
-    time = latestState[4]
 
-    index = int(time / timeStep)
+    if isFinalState ( latestState ):
+        writeToFile( motionPlan, outFile )
+        #solutionsFound = solutionsFound + 1
+    else:
+        nextTime = latestState[4] + timeStep
+
+        if nextTime <= endTime :
+            timeIndex = int(nextTime / timeStep)
+
+            for state in stateSpace[timeIndex]:
+                if areAdjacentStates( latestState, state ) :
+                    newPlan = copyList(motionPlan)
+                    newPlan.append(state)
+                    findMotionPlansRecurse( newPlan, outFile )
 
     
+def copyList( inList ):
+    newList = []
+    for item in inList:
+        newList.append( item )
+    return newList
 
 def isFinalState ( state ):
     v0 = state[0]
@@ -90,17 +111,24 @@ def isFinalState ( state ):
     h1 = state[3]
     return v0 == goalPos and v1 == goalPos and h0 == goalPos and h1 == goalPos
 
-def writeToFile( plan ) :
+def writeToFile( plan, outFile ) :
     for state in plan:
-        motionPlansFile.write( str(state) + "\n" )
+        count = 0
+        for number in state:
+            outFile.write( str(number) )
+            if count != 4:
+                outFile.write( "," )
+                count = count + 1
+            
+        outFile.write("\n")
         
-    motionPlansFile.write( "\n" )
+    outFile.write( "\n" )
         
-def areAdjacentStates( state1, state2 ) :
-    adjacent = (state1[4] + timeStep == state2[4])
+def areAdjacentStates( firstState, nextState ) :
+    adjacent = (firstState[4] + timeStep == nextState[4])
     
     for index in range(0, 4) :
-        if not (state1[index] == state2[index] or state1[index] + timeStep == state2[index]):
+        if not (firstState[index] == nextState[index] or firstState[index] + timeStep == nextState[index]):
             adjacent = False            
 
     return adjacent
@@ -110,14 +138,29 @@ def areAdjacentStates( state1, state2 ) :
 ##      Main      ##
 ####################
 
-loadStateSpace( testDataFileName )
-#loadStateSpace( stateSpaceFileName )
+#loadStateSpace( testDataFileName )
+loadStateSpace( stateSpaceFileName )
 
-#motionPlansFile = open( motionPlansFileName, 'w' )
 #findMotionPlans()
-#motionPlansFile.close()
+
+startingIndex = 24
+
+reachableCount = 0
+totalCount = len(stateSpace[startingIndex + 1])
+
+for nextState in stateSpace[startingIndex + 1]:
+    reachable = False
+    for firstState in stateSpace[startingIndex]:
+        if areAdjacentStates( firstState, nextState ) :
+            reachableCount = reachableCount + 1
+            break
+    
+
+print ( str(reachableCount) + " valid links out of a total of " + str(totalCount) )
+print ( str( round(float(reachableCount)/totalCount*100,2)) + "%")
 
 print ( "Run completed." )
+#print ( str(solutionsFound) + " solutions found." )
 
 
 
