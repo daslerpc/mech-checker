@@ -9,7 +9,15 @@ import math
 debugging = False
 
 # File in which the valid state space is saved
-stateSpaceFileName = "validStateSpaces.dat"
+# This is just the prefix.  The final file name will specify which parameters
+# were used to create it.
+stateSpaceFilePrefix = "validStateSpaces"
+
+# File for testing, same as above, but with many fewer states
+testDataFilePrefix = "stateSpaceTestData"
+
+# File extension for saved data
+fileExtension = ".dat"
 
 #############################
 ##    Program Variables    ##
@@ -18,7 +26,8 @@ stateSpaceFileName = "validStateSpaces.dat"
 # All valid vehicle positions and times.
 # A state is invalid if there is a vehicle collision, delay
 # violation, or speed violation.
-stateSpace = set()
+# Also, unreachable states will be pruned
+stateSpace = []
 
 # length of sides of square shaped space
 spaceSize = 2.0
@@ -168,6 +177,7 @@ def debugPrint( text ) :
 
 # Validation testing method
 # Creates several random states and checks their validity
+# This is just a debugging tool
 def testValidators() :
     currentTime = 0.0
 
@@ -182,13 +192,17 @@ def testValidators() :
         else:
             print(str(state) + " : Bad state!\n")
 
-# Construct the state space of valid configurations and save them to a file
+# Construct the state space of valid configurations
+# To save them to a file, call writeStateSpace()
 def buildStateSpace():
-    stateSpaceFile = open(stateSpaceFileName, 'w')
-
+    print("Building state space")
+    # Initialize state space
+    for time in range(0, numTimeSteps) :
+        stateSpace.append( [] )
+    
     # Loop through all possible states, i.e., all vehicle positions at all times
     for v0 in range(0, numGridSpaces):
-        print (v0)
+        print ( str(round(100*float(v0)/numGridSpaces,2)) + "% complete" )
         for v1 in range(0, numGridSpaces):
             vPos = (v0*resolution, v1*resolution)
             for h0 in range(0, numGridSpaces):
@@ -197,17 +211,131 @@ def buildStateSpace():
                     for t in range(0, numTimeSteps):
                         time = t*resolution
                         if stateIsValid( vPos, hPos, time ) :
-                            # write state (v0, v1, h0, h1, t)
-                            stateSpaceFile.write(str(vPos[0]) + "," + str(vPos[1]) + "," + str(hPos[0]) + "," + str(hPos[1]) + "," + str(time) + "\n")
+                            # Add state (v0, v1, h0, h1, t)
+                            stateSpace[t].append( (vPos[0], vPos[1], hPos[0], hPos[1], time) )
+    print("100% complete\nBuild complete\n")
 
-    stateSpaceFile.close()
+
+# Creates a filename containing run parameters
+def generateFileName( name ) :
+    # Goal Position
+    name = name + "_G" + str(spaceSize)
+
+    # Resolution
+    name = name + "_R" + str(resolution)
+
+    # End Time
+    name = name + "_E" + str(maxTime)
+
+    # Top Speed
+    name = name + "_S" + str(topSpeed)
+
+    # Add extension
+    name = name + fileExtension
     
+    return name
+
+# Generate a smaller state space for testing purposes
+# This method writes to a file on its own and does not
+# require the writeStateSpace() method to be called
+def generateTestData( ) :
+    fileName = generateFileName( testDataFilePrefix )
+    outputFile = open(fileName, 'w')
+    for step in range(0, 33):
+        t = step*resolution
+        state = ""
+        for x in range(0, 5):
+            state = state + str(t)
+            if x !=4:
+                state = state +","
+            else:
+                state = state +"\n"
+                
+        outputFile.write(state)
+        
+    outputFile.close()
+
+def writeStateSpace() :
+    stateSpaceFileName = generateFileName( stateSpaceFilePrefix )
+    print("Writing state space to file " + stateSpaceFileName)
+    stateSpaceFile = open(stateSpaceFileName, 'w')
+
+    for statesAtTime in stateSpace:
+        for state in statesAtTime:
+            stateSpaceFile.write(str(state[0]) + "," + str(state[1]) + "," + str(state[2]) + "," + str(state[3]) + "," + str(state[4]) + "\n")
+    
+    stateSpaceFile.close()
+    print("Writing complete\n")
+
+# Remove unreachable states
+def pruneStateSpace() :
+    print("Pruning state space")
+    
+    global stateSpace
+    startingSize = 0
+    endingSize = 0
+
+    tempStateSpace = []
+
+    # How big is our starting state space?
+    for timeIndex in range(0, len(stateSpace)):
+        startingSize = startingSize + len( stateSpace[timeIndex] )
+
+    # Initialize temporary state space
+    for timeIndex in range(0, numTimeSteps) :
+        tempStateSpace.append( [] )
+
+    tempStateSpace[0] = stateSpace[0]
+
+    # Remove unreachable states
+    spaceSize = len(stateSpace)
+    for timeIndex in range(1, spaceSize):
+        print( str(round(100*float(timeIndex)/spaceSize,2)) + "% complete." )
+        
+        for state in stateSpace[timeIndex]:
+            for prevState in tempStateSpace[timeIndex - 1]:
+                if areAdjacentStates(prevState, state):
+                    tempStateSpace[timeIndex].append( state )
+                    break
+    
+    # Transfer results
+    stateSpace = tempStateSpace
+
+    # How big is our ending state space?
+    for timeIndex in range(0, len(stateSpace)):
+        endingSize = endingSize + len( stateSpace[timeIndex] )
+
+    pruned = startingSize - endingSize
+
+    print("Pruning complete")
+    print("\tBegan with " + str(startingSize) + " states.")
+    print("\tEnded with " + str(endingSize) + " states.")
+    print("\tPruned " + str(pruned) + " states.")
+    print("\tA reduction of " + str(round(100*float(pruned)/startingSize ,2)) + "%.")
+
+
+# Are the two states adjacent in time (i.e., only one time step apart) and
+# are the vehicle positoins in the second state reachable from the positions
+# in the first in only one time step?
+
+def areAdjacentStates( firstState, nextState ) :
+    adjacent = (firstState[4] + resolution == nextState[4])
+    
+    for index in range(0, 4) :
+        if not (firstState[index] == nextState[index] or firstState[index] + (resolution*topSpeed) == nextState[index]):
+            adjacent = False            
+
+    return adjacent
+
 ####################
 ##      Main      ##
 ####################
 
 # Build the state space of valid states and save it to stateSpaceFileName
 buildStateSpace()
+pruneStateSpace()
+writeStateSpace()
+
 
 
 
