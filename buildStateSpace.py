@@ -1,8 +1,10 @@
 import random
 import math
 
+from helperMethods import *
+
 ############################
-##    Program Settings    ##
+##   Program Parameters   ##
 ############################
 
 # Turns on/off debugging text output
@@ -26,7 +28,6 @@ fileExtension = ".dat"
 # All valid vehicle positions and times.
 # A state is invalid if there is a vehicle collision, delay
 # violation, or speed violation.
-# Also, unreachable states will be pruned
 stateSpace = []
 
 # length of sides of square shaped space
@@ -194,7 +195,7 @@ def testValidators() :
 
 # Construct the state space of valid configurations
 # To save them to a file, call writeStateSpace()
-def buildStateSpace():
+def buildStateSpace( stateSpace ):
     print("Building state space")
     # Initialize state space
     for time in range(0, numTimeSteps) :
@@ -216,25 +217,6 @@ def buildStateSpace():
     print("100% complete\nBuild complete\n")
 
 
-# Creates a filename containing run parameters
-def generateFileName( name ) :
-    # Goal Position
-    name = name + "_G" + str(spaceSize)
-
-    # Resolution
-    name = name + "_R" + str(resolution)
-
-    # End Time
-    name = name + "_E" + str(maxTime)
-
-    # Top Speed
-    name = name + "_S" + str(topSpeed)
-
-    # Add extension
-    name = name + fileExtension
-    
-    return name
-
 # Generate a smaller state space for testing purposes
 # This method writes to a file on its own and does not
 # require the writeStateSpace() method to be called
@@ -255,65 +237,6 @@ def generateTestData( ) :
         
     outputFile.close()
 
-def writeStateSpace() :
-    stateSpaceFileName = generateFileName( stateSpaceFilePrefix )
-    print("Writing state space to file " + stateSpaceFileName)
-    stateSpaceFile = open(stateSpaceFileName, 'w')
-
-    for statesAtTime in stateSpace:
-        for state in statesAtTime:
-            stateSpaceFile.write(str(state[0]) + "," + str(state[1]) + "," + str(state[2]) + "," + str(state[3]) + "," + str(state[4]) + "\n")
-    
-    stateSpaceFile.close()
-    print("Writing complete\n")
-
-# Remove unreachable states
-def pruneStateSpace() :
-    print("Pruning state space")
-    
-    global stateSpace
-    startingSize = 0
-    endingSize = 0
-
-    tempStateSpace = []
-
-    # How big is our starting state space?
-    for timeIndex in range(0, len(stateSpace)):
-        startingSize = startingSize + len( stateSpace[timeIndex] )
-
-    # Initialize temporary state space
-    for timeIndex in range(0, numTimeSteps) :
-        tempStateSpace.append( [] )
-
-    tempStateSpace[0] = stateSpace[0]
-
-    # Remove unreachable states
-    spaceSize = len(stateSpace)
-    for timeIndex in range(1, spaceSize):
-        print( str(round(100*float(timeIndex)/spaceSize,2)) + "% complete." )
-        
-        for state in stateSpace[timeIndex]:
-            for prevState in tempStateSpace[timeIndex - 1]:
-                if areAdjacentStates(prevState, state):
-                    tempStateSpace[timeIndex].append( state )
-                    break
-    
-    # Transfer results
-    stateSpace = tempStateSpace
-
-    # How big is our ending state space?
-    for timeIndex in range(0, len(stateSpace)):
-        endingSize = endingSize + len( stateSpace[timeIndex] )
-
-    pruned = startingSize - endingSize
-
-    print("Pruning complete")
-    print("\tBegan with " + str(startingSize) + " states.")
-    print("\tEnded with " + str(endingSize) + " states.")
-    print("\tPruned " + str(pruned) + " states.")
-    print("\tA reduction of " + str(round(100*float(pruned)/startingSize ,2)) + "%.")
-
-
 # Are the two states adjacent in time (i.e., only one time step apart) and
 # are the vehicle positoins in the second state reachable from the positions
 # in the first in only one time step?
@@ -331,10 +254,12 @@ def areAdjacentStates( firstState, nextState ) :
 ##      Main      ##
 ####################
 
-# Build the state space of valid states and save it to stateSpaceFileName
-buildStateSpace()
-pruneStateSpace()
-writeStateSpace()
+# Build the state space of valid states and save it to stateSpaceFile
+buildStateSpace(stateSpace)
+
+# Write results to a file
+fileName = generateFileName( stateSpaceFilePrefix, spaceSize, resolution, maxTime, topSpeed, fileExtension)
+writeStateSpaceToFile(stateSpace, fileName)
 
 
 
